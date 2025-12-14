@@ -53,18 +53,61 @@ async function recordHash() {
             <p style="margin-top: 15px;">The record is now **permanently anchored** to the blockchain.</p>
         `;
 
-    } catch (error) {
+    }  catch (error) {
+        const resultDiv = document.getElementById('issuerResult');
         resultDiv.className = 'result error';
         let message = `❌ Recording Failed. Check console for details.`;
+        
+        // Function to find the human-readable revert reason deep within the error object
+        const findRevertReason = (err) => {
+            if (err.reason) return err.reason;
+            if (err.data && err.data.message) return err.data.message;
+            if (err.error && err.error.message) return err.error.message;
+            if (err.message) {
+                // Check if the message contains the common Ganache/Ethers revert strings
+                if (err.message.includes('revert') || err.message.includes('execution reverted')) {
+                    // Attempt to extract the custom string if available
+                    const reasonMatch = err.message.match(/'([^']+)'/);
+                    if (reasonMatch && reasonMatch[1]) return reasonMatch[1];
+                    return "Transaction reverted by contract (No specific reason provided).";
+                }
+            }
+            return null;
+        };
+
+        const revertReason = findRevertReason(error);
+
+        // 1. User Rejected Transaction
         if (error.code === 4001) {
-            message = '❌ Transaction Rejected by user.';
-        } else if (error.message.includes('already recorded')) {
-            message = '❌ Error: Hash already exists on the blockchain (Duplicate issuance).';
+            message = '❌ Transaction Rejected by user (MetaMask signature declined).';
         }
-        resultDiv.textContent = message;
+        // 2. Smart Contract Revert (Duplicate Hash)
+        else if (revertReason) {
+            // Check for our custom revert string or a general revert
+            if (revertReason.includes('already recorded')) {
+                 message = `
+                    <h2>🛑 ERROR: HASH ALREADY RECORDED</h2>
+                    <p>This document's integrity hash already exists on the blockchain. </p>
+                    <p>Duplicate issuance is prevented to maintain unique records.</p>
+                `;
+            } else {
+                 message = `
+                    <h2>🛑 ERROR: TRANSACTION REVERTED</h2>
+                    <p>The contract rejected this transaction. Reason: <strong>${revertReason.substring(0, 80)}</strong></p>
+                    <p>This typically means the document is already recorded.</p>
+                `;
+            }
+        }
+        // 3. Fallback for other errors (Network, RPC, etc.)
+        else {
+            message = `❌ Network/RPC Error. Details: ${error.message.substring(0, 80)}...`;
+        }
+        
+        resultDiv.innerHTML = message;
         console.error("Recording error:", error);
     }
 }
+// window.onload = init; is below the function
 
 // Call init when the file loads
 window.onload = init;
