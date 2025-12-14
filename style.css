@@ -1,0 +1,179 @@
+/* --- Global Styles --- */
+:root {
+    --primary-color: #3f51b5; /* Indigo */
+    --primary-light: #7986cb;
+    --success-color: #4CAF50; /* Green */
+    --error-color: #F44336;   /* Red */
+    --info-color: #2196F3;    /* Blue */
+    --background-color: #f7f7f7;
+    --card-background: #ffffff;
+    --text-color: #333333;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding-top: 50px;
+}
+
+/* --- Container and Header --- */
+.container {
+    width: 90%;
+    max-width: 800px;
+    background-color: var(--card-background);
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+h1 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 2.2em;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+}
+
+h2 {
+    color: var(--primary-light);
+    margin-top: 30px;
+    margin-bottom: 15px;
+    font-size: 1.4em;
+}
+
+/* --- Navigation --- */
+.nav {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.nav a {
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: 600;
+    padding: 8px 15px;
+    border-radius: 6px;
+    transition: background-color 0.3s;
+}
+
+.nav a:hover {
+    background-color: rgba(63, 81, 181, 0.1);
+}
+
+/* --- Form Elements and Buttons --- */
+input[type="file"] {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: #f9f9f9;
+}
+
+button {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1em;
+    font-weight: 600;
+    transition: background-color 0.3s, transform 0.1s;
+    width: 100%;
+}
+
+button:hover {
+    background-color: #303f9f; /* Darker Indigo */
+}
+
+button:active {
+    transform: scale(0.99);
+}
+
+/* --- Result/Status Messages --- */
+.result {
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: 8px;
+    border-left: 5px solid;
+    font-size: 1em;
+    line-height: 1.5;
+}
+
+.result.info {
+    background-color: #e3f2fd;
+    border-color: var(--info-color);
+    color: var(--info-color);
+}
+
+.result.success {
+    background-color: #e8f5e9;
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.result.error {
+    background-color: #ffebee;
+    border-color: var(--error-color);
+    color: var(--error-color);
+}
+
+.result p {
+    margin-top: 10px;
+    color: var(--text-color);
+    word-wrap: break-word;
+    font-size: 0.95em;
+}
+
+.result strong {
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+/* --- Specific Status/Hash Styling --- */
+#status {
+    font-weight: 600;
+    color: #444;
+}
+
+/* --- Loader Animation --- */
+.loader {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+    }
+    h1 {
+        font-size: 1.8em;
+    }
+}

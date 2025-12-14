@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifier: Check Document</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Document Verifier Portal</h1>
+        <div class="nav">
+            <a href="record.html" target="_blank">Record Document (Issuer)</a> | 
+            <a href="verify.html" target="_self">Verify Document (Verifier)</a>
+        </div>
+        
+        <h2>1. Document File to Verify</h2>
+        <input type="file" id="verifierFile" accept=".pdf,.doc,.txt">
+        
+        <h2>2. Run Verification Check</h2>
+        <button onclick="verifyHash()">Verify Document Authenticity</button>
+        
+        <div class="result info"><strong>Status:</strong> <span id="status">Connecting to Network...</span></div>
+        <div id="verifierResult" class="result"></div>
+    </div>
+
+    <script>
+        // === CRITICAL CONFIGURATION: (YOUR ADDRESS/ABI HERE) ===
+        const CONTRACT_ADDRESS = "0xb7Fb84e5fbbbBA93c6D32733131A0eDDF5EAB025"; 
+        const CONTRACT_ABI = [
+            /* Your full ABI array here (it's correct) */
+        {
+            "anonymous": false,
+            "inputs": [
+                {
+                    "indexed": true,
+                    "internalType": "string",
+                    "name": "documentHash",
+                    "type": "string"
+                },
+                {
+                    "indexed": true,
+                    "internalType": "address",
+                    "name": "issuer",
+                    "type": "address"
+                }
+            ],
+            "name": "DocumentRecorded",
+            "type": "event"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "_documentHash",
+                    "type": "string"
+                }
+            ],
+            "name": "recordDocument",
+            "outputs": [],
+            "stateMutability": "nonpayable",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "",
+                    "type": "string"
+                }
+            ],
+            "name": "verifiedDocuments",
+            "outputs": [
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        },
+        {
+            "inputs": [
+                {
+                    "internalType": "string",
+                    "name": "_documentHash",
+                    "type": "string"
+                }
+            ],
+            "name": "verifyDocument",
+            "outputs": [
+                {
+                    "internalType": "bool",
+                    "name": "",
+                    "type": "bool"
+                },
+                {
+                    "internalType": "address",
+                    "name": "",
+                    "type": "address"
+                }
+            ],
+            "stateMutability": "view",
+            "type": "function"
+        }
+
+        ];
+        // ===================================================
+
+        let provider;
+
+        async function init() {
+            if (!window.ethereum) {
+                document.getElementById('status').textContent = 'Error: MetaMask not found.';
+                return;
+            }
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                document.getElementById('status').textContent = `Connected to network. Ready to Verify.`;
+            } catch (error) {
+                document.getElementById('status').textContent = `Connection Failed: ${error.message}`;
+                console.error("Init Error:", error);
+            }
+        }
+
+        async function calculateSHA256Hash(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const buffer = event.target.result;
+                        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+                        const hashArray = Array.from(new Uint8Array(hashBuffer));
+                        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+                        resolve(hashHex);
+                    } catch (e) { reject(e); }
+                };
+                reader.onerror = (e) => reject(e);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function verifyHash() {
+            const fileInput = document.getElementById('verifierFile');
+            const resultDiv = document.getElementById('verifierResult');
+            resultDiv.className = 'result info';
+            resultDiv.innerHTML = '<span class="loader"></span> Processing...'; // Added loader
+
+            if (!fileInput.files.length) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Please select a document to verify.';
+                return;
+            }
+
+            try {
+                const file = fileInput.files[0];
+                const fileHash = await calculateSHA256Hash(file);
+
+                resultDiv.innerHTML = `<span class="loader"></span> Hash Calculated: <strong>${fileHash.substring(0, 30)}...</strong> Querying Blockchain...`;
+
+                const contractReader = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
+                const [isVerified, issuerAddress] = await contractReader.verifyDocument(fileHash);
+
+                if (isVerified) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        <h2>✅ VERIFIED AUTHENTIC!</h2>
+                        <p>This document is verifiable on the blockchain.</p>
+                        <p><strong>Hash Matched:</strong> ${fileHash}</p>
+                        <p><strong>Issued By:</strong> <span style="font-family: monospace;">${issuerAddress}</span></p>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        <h2>❌ VERIFICATION FAILED.</h2>
+                        <p>The document is either fake or has been tampered with since issuance.</p>
+                        <p><strong>Hash Not Found:</strong> ${fileHash}</p>
+                    `;
+                }
+
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Verification Query Failed. Check console for details.`;
+                console.error("Verification error:", error);
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>
