@@ -4,10 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Issuer: Record Document Hash</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script> 
+    
+    <script src="app.js"></script> 
+    
+    <script src="record_logic.js"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
     <div class="container">
         <h1>Document Issuer Portal</h1>
@@ -20,178 +25,10 @@
         <input type="file" id="issuerFile" accept=".pdf,.doc,.txt">
         
         <h2>2. Anchor Hash to Blockchain</h2>
-        <button onclick="recordHash()">Record Document Hash</button>
+        <button onclick="recordHash()">Record Document Hash</button> 
         
         <div class="result info"><strong>Status:</strong> <span id="status">Connecting to MetaMask...</span></div>
         <div id="issuerResult" class="result"></div>
     </div>
-
-    <script>
-        // === CRITICAL CONFIGURATION: (YOUR ADDRESS/ABI HERE) ===
-        const CONTRACT_ADDRESS = "0xb7Fb84e5fbbbBA93c6D32733131A0eDDF5EAB025";
-        const CONTRACT_ABI = [
-            /* Your full ABI array here (it's correct) */
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": true,
-                    "internalType": "string",
-                    "name": "documentHash",
-                    "type": "string"
-                },
-                {
-                    "indexed": true,
-                    "internalType": "address",
-                    "name": "issuer",
-                    "type": "address"
-                }
-            ],
-            "name": "DocumentRecorded",
-            "type": "event"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "string",
-                    "name": "_documentHash",
-                    "type": "string"
-                }
-            ],
-            "name": "recordDocument",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "string",
-                    "name": "",
-                    "type": "string"
-                }
-            ],
-            "name": "verifiedDocuments",
-            "outputs": [
-                {
-                    "internalType": "address",
-                    "name": "",
-                    "type": "address"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        },
-        {
-            "inputs": [
-                {
-                    "internalType": "string",
-                    "name": "_documentHash",
-                    "type": "string"
-                }
-            ],
-            "name": "verifyDocument",
-            "outputs": [
-                {
-                    "internalType": "bool",
-                    "name": "",
-                    "type": "bool"
-                },
-                {
-                    "internalType": "address",
-                    "name": "",
-                    "type": "address"
-                }
-            ],
-            "stateMutability": "view",
-            "type": "function"
-        }
-
-        ];
-        // ===================================================
-
-        let signer, contract;
-
-        async function init() {
-            if (!window.ethereum) {
-                document.getElementById('status').textContent = 'Error: MetaMask not found.';
-                return;
-            }
-            try {
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                const provider = new ethers.providers.Web3Provider(window.ethereum);
-                signer = provider.getSigner();
-                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
-                document.getElementById('status').textContent = `Connected! Address: ${await signer.getAddress()}`;
-            } catch (error) {
-                document.getElementById('status').textContent = `Connection Failed: ${error.message}`;
-                console.error("Init Error:", error);
-            }
-        }
-
-        async function calculateSHA256Hash(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = async (event) => {
-                    try {
-                        const buffer = event.target.result;
-                        const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-                        const hashArray = Array.from(new Uint8Array(hashBuffer));
-                        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-                        resolve(hashHex);
-                    } catch (e) { reject(e); }
-                };
-                reader.onerror = (e) => reject(e);
-                reader.readAsArrayBuffer(file);
-            });
-        }
-
-        async function recordHash() {
-            const fileInput = document.getElementById('issuerFile');
-            const resultDiv = document.getElementById('issuerResult');
-            resultDiv.className = 'result info';
-            resultDiv.innerHTML = '<span class="loader"></span> Processing...'; // Added loader
-
-            if (!fileInput.files.length) {
-                resultDiv.className = 'result error';
-                resultDiv.textContent = '❌ Please select a document.';
-                return;
-            }
-
-            try {
-                const file = fileInput.files[0];
-                const fileHash = await calculateSHA256Hash(file);
-                
-                resultDiv.innerHTML = `<span class="loader"></span> Hash Calculated: <strong>${fileHash.substring(0, 30)}...</strong> Awaiting MetaMask transaction...`;
-
-                const tx = await contract.recordDocument(fileHash);
-                
-                resultDiv.innerHTML = `<span class="loader"></span> Transaction sent! Waiting for confirmation... (Tx: <strong>${tx.hash.substring(0, 10)}...</strong>)`;
-
-                await tx.wait(); 
-
-                resultDiv.className = 'result success';
-                resultDiv.innerHTML = `
-                    <h2>✅ TRANSACTION COMPLETE!</h2>
-                    <p><strong>Document Hash (SHA-256):</strong> ${fileHash}</p>
-                    <p><strong>Transaction Hash:</strong> <span style="font-family: monospace;">${tx.hash}</span></p>
-                    <p style="margin-top: 15px;">The document's integrity record is now **permanently anchored** to the blockchain.</p>
-                `;
-
-            } catch (error) {
-                resultDiv.className = 'result error';
-                let message = `❌ Recording Failed. Check console for details.`;
-                if (error.code === 4001) {
-                    message = '❌ Transaction Rejected by user.';
-                } else if (error.message.includes('already recorded')) {
-                    message = '❌ Error: Hash already exists on the blockchain (Duplicate issuance).';
-                }
-                resultDiv.textContent = message;
-                console.error("Recording error:", error);
-            }
-        }
-
-        init();
-    </script>
 </body>
 </html>
